@@ -1,12 +1,14 @@
 import customtkinter as ctk
 from tkinterdnd2 import DND_FILES, TkinterDnD
+from tkinter import messagebox
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 import threading
 from .text_chunker import TextChunker
 from .file_handler import FileHandler
 from .logger import setup_logger
+from .config_gui import ChunkConfigDialog
 
 logger = setup_logger("gui")
 
@@ -172,34 +174,45 @@ class ChunkerGUI:
             self.drop_label.configure(text="📁 Dateien hier hineinziehen\noder klicken zum Auswählen")
     
     def _process_files(self):
-        """Verarbeitet alle geladenen Dateien in einem separaten Thread."""
+        """Startet die Verarbeitung nach Konfiguration durch den Benutzer."""
+        if not self.loaded_files:
+            return
+
+        # Länge der ersten Datei ermitteln um sie im Dialog anzuzeigen
+        sample_content = self.file_handler.read_file(self.loaded_files[0])
+        if sample_content is None:
+            messagebox.showerror("Fehler", "Datei konnte nicht gelesen werden.")
+            return
+
+        dialog = ChunkConfigDialog(self.root, len(sample_content))
+        config = dialog.show()
+        if not config:
+            self._update_ui_state()
+            return
+
         self.process_button.configure(state="disabled")
         self.clear_button.configure(state="disabled")
-        
-        # Verarbeitung in separatem Thread
-        thread = threading.Thread(target=self._process_files_thread)
+
+        thread = threading.Thread(target=self._process_files_thread, args=(config,))
         thread.start()
-    
-    def _process_files_thread(self):
+
+    def _process_files_thread(self, config: dict):
         """Thread-Funktion für die Dateiverarbeitung."""
         total_files = len(self.loaded_files)
         
         for i, file_path in enumerate(self.loaded_files):
-            # Progress Update
             progress = (i / total_files)
             self.progress_bar.set(progress)
             self.status_label.configure(text=f"Verarbeite: {os.path.basename(file_path)}")
-            
-            # Datei verarbeiten
+
             content = self.file_handler.read_file(file_path)
             if content:
-                # Optional: Sprecher formatieren
-                formatted_content = self.text_chunker.format_with_speakers(content)
-                
-                # In Chunks aufteilen
+                selection = content[config["start"]:config["end"]]
+                formatted_content = self.text_chunker.format_with_speakers(selection)
+
+                self.text_chunker.max_chunk_size = config["chunk_size"]
                 chunks = self.text_chunker.split_text(formatted_content)
-                
-                # Chunks speichern
+
                 self.file_handler.save_chunks(chunks, os.path.basename(file_path))
             
             logger.info(f"Datei verarbeitet: {file_path}")
