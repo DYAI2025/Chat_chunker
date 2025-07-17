@@ -5,9 +5,15 @@ from .logger import setup_logger
 logger = setup_logger("text_chunker")
 
 class TextChunker:
-    """
-    Klasse zum Aufteilen von Texten in Chunks mit maximaler Zeichenlänge.
-    """
+    """Zerlegt Texte in einzelne Teile (Chunks)."""
+
+    # Der bisherige Ablauf:
+    # 1. Text wird zeilenweise eingelesen.
+    # 2. Jede Zeile wird, falls nötig, an Wortgrenzen in den aktuellen
+    #    Chunk eingefügt.
+    # 3. Überschreitet eine Zeile die maximale Chunk-Größe, wird sie
+    #    selbst an Wortgrenzen aufgeteilt.
+    # 4. Fertige Chunks werden in einer Liste gesammelt und zurückgegeben.
     
     def __init__(self, max_chunk_size: int = 5000):
         """
@@ -16,6 +22,8 @@ class TextChunker:
         Args:
             max_chunk_size: Maximale Anzahl von Zeichen pro Chunk
         """
+        # Standardmäßig ist die Chunk-Größe fest auf 5000 Zeichen gesetzt.
+        # Dieser Wert wird nun über die neue GUI dynamisch angepasst.
         self.max_chunk_size = max_chunk_size
         logger.info(f"TextChunker initialisiert mit max_chunk_size={max_chunk_size}")
     
